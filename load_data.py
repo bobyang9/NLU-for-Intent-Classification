@@ -15,10 +15,19 @@ import collections
 HUGGING_FACE_PRETRAINED_MODELS = {
     'bert-base-uncased': {'tokenizer': transformers.BertTokenizer, 'model': transformers.BertModel},
     'distilbert-base-uncased': {'tokenizer': transformers.DistilBertTokenizer, 'model': transformers.DistilBertModel},
+    'roberta-base': {'tokenizer': transformers.RobertaTokenizer, 'model': transformers.RobertaModel},
+    'google/electra-small-discriminator': {'tokenizer': transformers.ElectraTokenizer, 'model': transformers.ElectraModel},
 }
 
 SBERT_PRETRAINED_MODELS = {
-    'distilbert-base-nli-mean-tokens': {'tokenizer': None, 'model': sentence_transformers.SentenceTransformer}
+    'bert-base-nli-mean-tokens': {'tokenizer': None, 'model': sentence_transformers.SentenceTransformer},
+    'bert-large-nli-mean-tokens': {'tokenizer': None, 'model': sentence_transformers.SentenceTransformer},
+    'bert-base-nli-stsb-mean-tokens': {'tokenizer': None, 'model': sentence_transformers.SentenceTransformer},
+    'bert-large-nli-stsb-mean-tokens': {'tokenizer': None, 'model': sentence_transformers.SentenceTransformer},
+    'distilbert-base-nli-mean-tokens': {'tokenizer': None, 'model': sentence_transformers.SentenceTransformer},
+    'distilbert-base-nli-stsb-mean-tokens': {'tokenizer': None, 'model': sentence_transformers.SentenceTransformer},
+    'roberta-base-nli-stsb-mean-tokens': {'tokenizer': None, 'model': sentence_transformers.SentenceTransformer},
+    'roberta-large-nli-stsb-mean-tokens': {'tokenizer': None, 'model': sentence_transformers.SentenceTransformer},
 }
 
 GENSIM_PRETRAINED_MODELS = set([

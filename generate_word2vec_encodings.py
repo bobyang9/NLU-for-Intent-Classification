@@ -25,7 +25,7 @@ def load_data(train_path, test_path):
     return X_train, y_train, X_valid, y_valid, X_test, y_test
 
 def save_encodings(X, y, dataset, config, split):
-    save_dir = Path(f'{dataset}_bert_encodings')
+    save_dir = Path(f'{dataset}_word2vec_encodings')
     save_dir = save_dir / config
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
