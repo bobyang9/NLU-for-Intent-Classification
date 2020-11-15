@@ -2,7 +2,38 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+import torch
+import transformers
+import sentence_transformers
+import gensim
+import gensim.downloader
+
 import collections
+
+
+
+HUGGING_FACE_PRETRAINED_MODELS = {
+    'bert-base-uncased': {'tokenizer': transformers.BertTokenizer, 'model': transformers.BertModel},
+    'distilbert-base-uncased': {'tokenizer': transformers.DistilBertTokenizer, 'model': transformers.DistilBertModel},
+}
+
+SBERT_PRETRAINED_MODELS = {
+    'distilbert-base-nli-mean-tokens': {'tokenizer': None, 'model': sentence_transformers.SentenceTransformer}
+}
+
+GENSIM_PRETRAINED_MODELS = set([
+    'word2vec-google-news-300',
+    'glove-wiki-gigaword-50',
+    'glove-wiki-gigaword-100',
+    'glove-wiki-gigaword-200',
+    'glove-wiki-gigaword-300',
+    'glove-twitter-25',
+    'glove-twitter-50',
+    'glove-twitter-100',
+    'glove-twitter-200',
+    'fasttext-wiki-news-subwords-300',
+    'conceptnet-numberbatch-17-06-300',
+])
 
 
 
@@ -120,6 +151,123 @@ class FeatureExtractor():
             counts[word] += 1
         return counts
     
+    def get_train_encodings(self):
+        return self.X_train
+    
+    def get_valid_encodings(self):
+        return self.X_valid
+    
+    def get_test_encodings(self):
+        return self.X_test
+    
+    
+    
+class BertFeatureExtractor():
+    def __init__(self, config, X_train, X_valid=None, X_test=None):
+        self.X_train = X_train
+        self.X_valid = X_valid
+        self.X_test = X_test
+        self.config = config
+        self.device = device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.tokenizer, self.model = self.get_pretrain_model(self.config, self.device)
+
+    def extract_features(self):
+        self.X_train = self.get_embeddings(self.X_train)
+        if self.X_valid:
+            self.X_valid = self.get_embeddings(self.X_valid)
+        if self.X_test:
+            self.X_test = self.get_embeddings(self.X_test)
+
+    def get_pretrain_model(self, config, device):
+        if config in HUGGING_FACE_PRETRAINED_MODELS:
+            tokenizer = HUGGING_FACE_PRETRAINED_MODELS[config]['tokenizer'].from_pretrained(config)
+            model = HUGGING_FACE_PRETRAINED_MODELS[config]['model'].from_pretrained(config, return_dict=True)
+            model = model.to(device)
+            model.eval()
+            return tokenizer, model
+
+        elif config in SBERT_PRETRAINED_MODELS:
+            tokenizer = SBERT_PRETRAINED_MODELS[config]['tokenizer']
+            if tokenizer != None:
+                tokenizer = tokenizer(config)
+            model = SBERT_PRETRAINED_MODELS[config]['model'](config)
+            model = model.to(device)
+            model.eval()
+            return tokenizer, model
+
+        else:
+            raise RuntimeError("Unsupported models.")
+
+    def get_embeddings(self, texts):
+        if self.config in HUGGING_FACE_PRETRAINED_MODELS:
+            inputs = self.tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+            inputs = inputs.to(self.device)
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+            embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+            return embeddings
+
+        elif self.config in SBERT_PRETRAINED_MODELS:
+            embeddings = self.model.encode(texts)
+            return embeddings
+
+        else:
+            raise RuntimeError("Unsupported models.")
+
+    def get_train_encodings(self):
+        return self.X_train
+    
+    def get_valid_encodings(self):
+        return self.X_valid
+    
+    def get_test_encodings(self):
+        return self.X_test
+    
+    
+    
+class Word2VecFeatureExtractor():
+    def __init__(self, config, X_train, X_valid=None, X_test=None, output_encodings='mean'):
+        self.X_train = X_train
+        self.X_valid = X_valid
+        self.X_test = X_test
+        self.config = config
+        self.output_encodings = output_encodings
+        self.word_embeddings = self.get_pretrain_model(self.config)
+
+    def extract_features(self):
+        self.X_train = self.get_embeddings(self.X_train)
+        if self.X_valid:
+            self.X_valid = self.get_embeddings(self.X_valid)
+        if self.X_test:
+            self.X_test = self.get_embeddings(self.X_test)
+
+    def get_pretrain_model(self, config):
+        if config in GENSIM_PRETRAINED_MODELS:
+            word_embeddings = gensim.downloader.load(config)
+            return word_embeddings
+
+        else:
+            raise RuntimeError("Unsupported models.")
+
+    def get_embeddings(self, texts):
+        if self.config in GENSIM_PRETRAINED_MODELS:
+            data_embeddings = []
+            for sentence in texts:
+                words = [word.lower() for word in sentence.split()]
+                sentence_embeddings = []
+                for word in words:
+                    if word in self.word_embeddings:
+                        sentence_embeddings.append(self.word_embeddings[word])
+                sentence_embeddings = np.asarray(sentence_embeddings)
+                if self.output_encodings == 'mean':
+                    sentence_embeddings = np.mean(sentence_embeddings, axis=0)
+                data_embeddings.append(sentence_embeddings)
+            data_embeddings = np.asarray(data_embeddings)
+            return data_embeddings
+
+        else:
+            raise RuntimeError("Unsupported models.")
+
     def get_train_encodings(self):
         return self.X_train
     
