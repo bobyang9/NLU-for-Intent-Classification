@@ -32,7 +32,7 @@ def plot_graphs(history, metric):
 TRAIN_PATH = './snips/snips_train_actual.csv'
 TEST_PATH = './snips/snips_test_actual.csv'
 
-data_loader = SnipsDataLoader(TRAIN_PATH, None, TEST_PATH)
+data_loader = DataLoader(TRAIN_PATH, None, TEST_PATH)
 data_loader.split_train_valid(valid_size=0.05, keep_class_ratios=True)
 
 X_train, y_train = data_loader.get_train_data()
