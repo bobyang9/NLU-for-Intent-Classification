@@ -8,6 +8,7 @@ import numpy as np
 import sklearn
 import scipy
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 from load_data import *
 
@@ -56,14 +57,14 @@ val_dataset = tf.data.Dataset.from_tensor_slices((X_valid, y_valid))
 train_dataset = train_dataset.shuffle(SHUFFLE_BUFFER_SIZE).batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
 val_dataset = val_dataset.batch(BATCH_SIZE).prefetch(tf.data.experimental.AUTOTUNE)
 
-num_features = feature_extractor.vocab_size+1 # plus 1 is for UNK
-print(num_features)
-
 # Loading embedding
-embedding_matrix = np.eye(num_features)
+config = "distilbert-base-uncased"
+save_dir = Path('embeddings/snips_bert_encodings')
+save_dir = save_dir / config
+embedding_matrix = np.load(save_dir / 'X_train.npy')
 
 # Model
-embedding_layer = Embedding(num_features, num_features, embeddings_initializer=keras.initializers.Constant(embedding_matrix), trainable=False)
+embedding_layer = Embedding(embedding_matrix.shape[0], embedding_matrix.shape[1], embeddings_initializer=keras.initializers.Constant(embedding_matrix), trainable=False)
 
 int_sequences_input = keras.Input(shape=(feature_extractor.max_dim,), dtype="int64")
 embedded_sequences = embedding_layer(int_sequences_input)
