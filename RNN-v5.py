@@ -20,6 +20,7 @@ from tensorflow.keras import utils
 from tensorflow.keras import regularizers
 from tensorflow.keras.layers.experimental.preprocessing import TextVectorization
 from tensorflow.keras.layers import Embedding
+from tensorflow.keras.layers import BatchNormalization
 from tensorflow import keras
 
 from sklearn.metrics import classification_report
@@ -37,8 +38,8 @@ def train_LSTM(train_path, test_path, embeddings_dir, config, embedding_type, da
     :param test_path: (string) path of test data
     :param embeddings_dir: (string) directory name where the embeddings are
     :param config: (string) config of embeddings
-    :param embedding_type: for naming, one of the following {regular, BERT, Word2Vec}
-    :param dataset_name: for naming, one of the following {SNIPS, ATIS}
+    :param embedding_type: for naming, one of the following {"regular", "BERT", "Word2Vec"}
+    :param dataset_name: for naming, one of the following {"SNIPS", "ATIS"}
     :param epochs: number of epochs to train
     :return: None
     Prints
@@ -70,9 +71,10 @@ def train_LSTM(train_path, test_path, embeddings_dir, config, embedding_type, da
     # Loading embedding
     if(embedding_type == "regular"):
         embedding_matrix = np.eye(feature_extractor.vocab_size+1)
-    save_dir = Path(embeddings_dir)
-    save_dir = save_dir / config
-    embedding_matrix = np.load(save_dir / 'X_train.npy')
+    else:
+        save_dir = Path(embeddings_dir)
+        save_dir = save_dir / config
+        embedding_matrix = np.load(save_dir / 'X_train.npy')
 
     # Model
     embedding_layer = Embedding(embedding_matrix.shape[0], embedding_matrix.shape[1], embeddings_initializer=keras.initializers.Constant(embedding_matrix), trainable=False)
@@ -80,6 +82,9 @@ def train_LSTM(train_path, test_path, embeddings_dir, config, embedding_type, da
     int_sequences_input = keras.Input(shape=(feature_extractor.max_dim,), dtype="int64")
     embedded_sequences = embedding_layer(int_sequences_input)
     x = layers.Bidirectional(tf.keras.layers.LSTM(64))(embedded_sequences)
+    # stability for skewed dataset
+    if(dataset_name == "ATIS"):
+        x = layers.BatchNormalization()(x)
     x = layers.Dropout(0.2)(x)
     x = layers.Dense(64, activation='relu')(x)
     preds = layers.Dense(num_classes, activation="softmax")(x)
@@ -105,7 +110,7 @@ def train_LSTM(train_path, test_path, embeddings_dir, config, embedding_type, da
     predicted = model.predict(X_valid, batch_size=64, verbose=1)
     predicted_boolean = np.argmax(predicted, axis=1)
 
-    print(classification_report(y_valid, predicted_boolean))
+    print(classification_report(y_valid, predicted_boolean, digits=5))
 
     # Plotting
     plt.figure(figsize=(16,8))
@@ -120,10 +125,13 @@ def train_LSTM(train_path, test_path, embeddings_dir, config, embedding_type, da
 
     plt.savefig("accuracy_loss_plot_%s_%s.png"%(dataset_name, embedding_type))
     plt.show()
+    plt.close()
 
-train_LSTM('./snips/snips_train_actual.csv', './snips/snips_test_actual.csv', '', "", "regular", "SNIPS", 20)
+train_LSTM('./snips/snips_train_actual.csv', './snips/snips_test_actual.csv', '', "", "regular", "SNIPS", 200)
 train_LSTM('./snips/snips_train_actual.csv', './snips/snips_test_actual.csv', 'embeddings/snips_bert_encodings', "distilbert-base-uncased", "BERT", "SNIPS", 200)
 train_LSTM('./snips/snips_train_actual.csv', './snips/snips_test_actual.csv', 'embeddings/snips_word2vec_encodings', "glove-wiki-gigaword-300", "Word2Vec", "SNIPS", 200)
-train_LSTM('./atis/atis_train_actual.csv', './atis/atis_test_actual.csv', '', "", "regular", "ATIS", 20)
+train_LSTM('./atis/atis_train_actual.csv', './atis/atis_test_actual.csv', '', "", "regular", "ATIS", 200)
 train_LSTM('./atis/atis_train_actual.csv', './atis/atis_test_actual.csv', 'embeddings/atis_bert_encodings', "distilbert-base-uncased", "BERT", "ATIS", 200)
 train_LSTM('./atis/atis_train_actual.csv', './atis/atis_test_actual.csv', 'embeddings/atis_word2vec_encodings', "glove-wiki-gigaword-300", "Word2Vec", "ATIS", 200)
+
+
